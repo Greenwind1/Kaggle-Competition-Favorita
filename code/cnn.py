@@ -4,53 +4,82 @@ from datetime import date
 from keras.models import Model
 from keras.layers import *
 
-from code.Utils import *
+from util.Utils import *
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # suppress tf warnings
 
-df, promo_df, items, stores = load_unstack('all')
+# -------------------------------------------------------------------
+#   Env Setting
+# -------------------------------------------------------------------
+TIMESTEPS = 200
+
+# -------------------------------------------------------------------
+#   Load Dataset
+# -------------------------------------------------------------------
+df_name = './input/unstack_train.f'
+promo_name = './input/unstack_promo.f'
+df, promo_df, items, stores = load_unstack(df_name, promo_name)
+print('df shape =', df.shape, '\npromo_df shape =', promo_df.shape)
 
 # data after 2015
-df = df[pd.date_range(date(2015, 6, 1), date(2017, 8, 15))]
-promo_df = promo_df[pd.date_range(date(2015, 6, 1), date(2017, 8, 31))]
+# df = df[pd.date_range(date(2015, 6, 1), date(2017, 8, 15))]
+# promo_df = promo_df[pd.date_range(date(2015, 6, 1), date(2017, 8, 31))]
 
-promo_df = promo_df[
-    df[pd.date_range(date(2017, 1, 1), date(2017, 8, 15))].max(axis=1) > 0]
 df = df[df[pd.date_range(date(2017, 1, 1), date(2017, 8, 15))].max(axis=1) > 0]
+promo_df = promo_df[
+    promo_df[pd.date_range(date(2017, 1, 1), date(2017, 8, 15))].max(axis=1) > 0
+    ]
 promo_df = promo_df.astype('int')
+print('df shape =', df.shape, '\npromo_df shape =', promo_df.shape)
 
-df_test = pd.read_csv("test.csv", usecols=[0, 1, 2, 3, 4],
-                      dtype={'onpromotion': bool},
-                      parse_dates=["date"]).set_index(
-    ['store_nbr', 'item_nbr', 'date'])
-item_nbr_test = df_test.index.get_level_values(1)
+df_test = pd.read_csv(
+    './input/test.csv',
+    usecols=[0, 1, 2, 3, 4],
+    dtype={'onpromotion': bool},
+    parse_dates=["date"]
+).set_index(['store_nbr', 'item_nbr', 'date'])
+
 item_nbr_train = df.index.get_level_values(1)
+item_nbr_test = df_test.index.get_level_values(1)
 item_inter = list(set(item_nbr_train).intersection(set(item_nbr_test)))
+print(
+    'Nunique of item in train =', len(item_nbr_train),
+    '\nNunique of item in test =', len(item_nbr_test),
+    '\nNunique of item in the intersection of train and test =', len(item_inter)
+)
+
 df = df.loc[df.index.get_level_values(1).isin(item_inter)]
 promo_df = promo_df.loc[promo_df.index.get_level_values(1).isin(item_inter)]
+print('df shape =', df.shape, '\npromo_df shape =', promo_df.shape)
 
 df_index = df.index
-del item_nbr_test, item_nbr_train, item_inter, df_test;
+del item_nbr_test, item_nbr_train, item_inter, df_test
 gc.collect()
 
-timesteps = 200
-
-# preparing data
-train_data = train_generator(df, promo_df, items, stores, timesteps,
-                             date(2017, 7, 5),
-                             n_range=16, day_skip=7, batch_size=2000,
-                             aux_as_tensor=False, reshape_output=2)
-Xval, Yval = create_dataset(df, promo_df, items, stores, timesteps,
+# -------------------------------------------------------------------
+#   Prepare Dataset
+# -------------------------------------------------------------------
+train_data = train_generator(
+    df, promo_df, items, stores,
+    timesteps=TIMESTEPS,
+    first_pred_start=date(2017, 7, 5),
+    n_range=16,
+    day_skip=7,
+    batch_size=2000,
+    aux_as_tensor=False,
+    reshape_output=2
+)
+Xval, Yval = create_dataset(df, promo_df, items, stores, TIMESTEPS,
                             date(2017, 7, 26),
                             aux_as_tensor=False, reshape_output=2)
-Xtest, _ = create_dataset(df, promo_df, items, stores, timesteps,
+Xtest, _ = create_dataset(df, promo_df, items, stores, TIMESTEPS,
                           date(2017, 8, 16),
                           aux_as_tensor=False, is_train=False, reshape_output=2)
 
 w = (Xval[7][:, 2] * 0.25 + 1) / (Xval[7][:,
                                   2] * 0.25 + 1).mean()  # validation weight: 1.25 if perishable and 1 otherwise per competition rules
 
-del df, promo_df;
+del df, promo_df
 gc.collect()
 
 print('current no promo 2')  # log info
@@ -59,19 +88,19 @@ latent_dim = 32
 
 # Define input
 # seq input
-seq_in = Input(shape=(timesteps, 1))
-is0_in = Input(shape=(timesteps, 1))
-promo_in = Input(shape=(timesteps + 16, 1))
-yearAgo_in = Input(shape=(timesteps + 16, 1))
-quarterAgo_in = Input(shape=(timesteps + 16, 1))
-item_mean_in = Input(shape=(timesteps, 1))
-store_mean_in = Input(shape=(timesteps, 1))
+seq_in = Input(shape=(TIMESTEPS, 1))
+is0_in = Input(shape=(TIMESTEPS, 1))
+promo_in = Input(shape=(TIMESTEPS + 16, 1))
+yearAgo_in = Input(shape=(TIMESTEPS + 16, 1))
+quarterAgo_in = Input(shape=(TIMESTEPS + 16, 1))
+item_mean_in = Input(shape=(TIMESTEPS, 1))
+store_mean_in = Input(shape=(TIMESTEPS, 1))
 # store_family_mean_in = Input(shape=(timesteps, 1))
-weekday_in = Input(shape=(timesteps + 16,), dtype='uint8')
-weekday_embed_encode = Embedding(7, 4, input_length=timesteps + 16)(weekday_in)
+weekday_in = Input(shape=(TIMESTEPS + 16,), dtype='uint8')
+weekday_embed_encode = Embedding(7, 4, input_length=TIMESTEPS + 16)(weekday_in)
 # weekday_embed_decode = Embedding(7, 4, input_length=timesteps+16)(weekday_in)
-dom_in = Input(shape=(timesteps + 16,), dtype='uint8')
-dom_embed_encode = Embedding(31, 4, input_length=timesteps + 16)(dom_in)
+dom_in = Input(shape=(TIMESTEPS + 16,), dtype='uint8')
+dom_embed_encode = Embedding(31, 4, input_length=TIMESTEPS + 16)(dom_in)
 # dom_embed_decode = Embedding(31, 4, input_length=timesteps+16)(dom_in)
 # weekday_onehot = Lambda(K.one_hot, arguments={'num_classes': 7}, output_shape=(timesteps+16, 7))(weekday_in)
 
@@ -91,7 +120,7 @@ store_embed = Embedding(54, 8, input_length=1)(store_nbr)
 cluster_embed = Embedding(17, 3, input_length=1)(store_cluster)
 type_embed = Embedding(5, 2, input_length=1)(store_type)
 
-encode_slice = Lambda(lambda x: x[:, :timesteps, :])
+encode_slice = Lambda(lambda x: x[:, :TIMESTEPS, :])
 # encode_features = concatenate([promo_in, yearAgo_in, quarterAgo_in], axis=2)
 # encode_features = encode_slice(encode_features)
 
@@ -118,7 +147,7 @@ conv_out = Conv1D(8, 1, activation='relu')(c4)
 conv_out = Dropout(0.25)(conv_out)
 conv_out = Flatten()(conv_out)
 
-decode_slice = Lambda(lambda x: x[:, timesteps:, :])
+decode_slice = Lambda(lambda x: x[:, TIMESTEPS:, :])
 promo_pred = decode_slice(promo_in)
 # qAgo_pred = decode_slice(quarterAgo_in)
 # yAgo_pred = decode_slice(yearAgo_in)

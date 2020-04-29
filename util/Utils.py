@@ -7,62 +7,89 @@ from datetime import date, timedelta
 
 
 def load_data():
-    # df_train = pd.read_feather('train_after1608_raw')
-    df_train = pd.read_csv('train.csv', usecols=[1, 2, 3, 4, 5],
-                           dtype={'onpromotion': bool},
-                           converters={'unit_sales': lambda u: np.log1p(
-                               float(u)) if float(u) > 0 else 0},
-                           parse_dates=["date"])
-    df_test = pd.read_csv("test.csv", usecols=[0, 1, 2, 3, 4],
-                          dtype={'onpromotion': bool},
-                          parse_dates=["date"]).set_index(
-        ['store_nbr', 'item_nbr', 'date'])
+    # ---------------------------------------------------------------
+    #   Raw train data
+    # ---------------------------------------------------------------
+    # df_train = pd.read_csv(
+    #     './input/train.csv',
+    #     usecols=[1, 2, 3, 4, 5],
+    #     # dtype={'onpromotion': bool},
+    #     converters={
+    #         'unit_sales': lambda u: np.log1p(float(u)) if float(u) > 0 else 0
+    #     },
+    #     parse_dates=["date"]
+    # )
 
-    # subset data
-    df_2017 = df_train.loc[df_train.date >= pd.datetime(2016, 1, 1)]
+    # df_train.to_feather('./input/train.f')
+    # df_train = pd.read_feather('./input/train.f', use_threads=True)
+
+    # ---------------------------------------------------------------
+    #   Extract data from 2016-01-01
+    #   2013-01-01 <= train.date <= 2017-08-15, 1684 days
+    # ---------------------------------------------------------------
+    # df_train = df_train.loc[df_train.date >= pd.datetime(2016, 1, 1)]
+    # df_train.reset_index().to_feather('./input/train_2016.f')
+
+    df_train = pd.read_feather(
+        './input/train_2016.f',
+        columns=['date', 'store_nbr', 'item_nbr', 'unit_sales', 'onpromotion'],
+        use_threads=True
+    )
+
+    df_test = pd.read_csv(
+        './input/test.csv',
+        usecols=[0, 1, 2, 3, 4],
+        dtype={'onpromotion': bool},
+        parse_dates=["date"]
+    ).set_index(['store_nbr', 'item_nbr', 'date'])
+
+    gc.collect()
 
     # promo
-    promo_2017_train = df_2017.set_index(
-        ["store_nbr", "item_nbr", "date"])[["onpromotion"]].unstack(
-        level=-1).fillna(False)
+    promo_2017_train = df_train.set_index(
+        ["store_nbr", "item_nbr", "date"]
+    )[["onpromotion"]].unstack(level=-1).fillna(False)
     promo_2017_train.columns = promo_2017_train.columns.get_level_values(1)
+
     promo_2017_test = df_test[["onpromotion"]].unstack(level=-1).fillna(False)
     promo_2017_test.columns = promo_2017_test.columns.get_level_values(1)
-    promo_2017_test = promo_2017_test.reindex(promo_2017_train.index).fillna(
-        False)
+    promo_2017_test = \
+        promo_2017_test.reindex(promo_2017_train.index).fillna(False)
+
     promo_2017 = pd.concat([promo_2017_train, promo_2017_test], axis=1)
     del promo_2017_test, promo_2017_train
+    gc.collect()
 
-    df_2017 = df_2017.set_index(
+    # melt (from long to wide)
+    df_train = df_train.set_index(
         ["store_nbr", "item_nbr", "date"])[["unit_sales"]].unstack(
         level=-1).fillna(0)
-    df_2017.columns = df_2017.columns.get_level_values(1)
+    df_train.columns = df_train.columns.get_level_values(1)
 
     # items
-    items = pd.read_csv("items.csv").set_index("item_nbr")
-    stores = pd.read_csv("stores.csv").set_index("store_nbr")
+    # items = pd.read_csv('./input/items.csv').set_index("item_nbr")
+    # stores = pd.read_csv('./input/stores.csv').set_index("store_nbr")
     # items = items.reindex(df_2017.index.get_level_values(1))
 
-    return df_2017, promo_2017, items, stores
+    return df_train, promo_2017
 
 
-def save_unstack(df, promo, filename):
-    df_name, promo_name = 'df_' + filename + '_raw', 'promo_' + filename + '_raw'
+def save_unstack(df, promo, df_name, promo_name):
     df.columns = df.columns.astype('str')
     df.reset_index().to_feather(df_name)
     promo.columns = promo.columns.astype('str')
     promo.reset_index().to_feather(promo_name)
 
 
-def load_unstack(filename):
-    df_name, promo_name = 'df_' + filename + '_raw', 'promo_' + filename + '_raw'
+def load_unstack(df_name, promo_name):
     df_2017 = pd.read_feather(df_name).set_index(['store_nbr', 'item_nbr'])
     df_2017.columns = pd.to_datetime(df_2017.columns)
     promo_2017 = pd.read_feather(promo_name).set_index(
-        ['store_nbr', 'item_nbr'])
+        ['store_nbr', 'item_nbr']
+    )
     promo_2017.columns = pd.to_datetime(promo_2017.columns)
-    items = pd.read_csv("items.csv").set_index("item_nbr")
-    stores = pd.read_csv("stores.csv").set_index("store_nbr")
+    items = pd.read_csv('./input/items.csv').set_index('item_nbr')
+    stores = pd.read_csv('./input/stores.csv').set_index('store_nbr')
 
     return df_2017, promo_2017, items, stores
 
@@ -96,8 +123,9 @@ def create_dataset(df, promo_df, items, stores, timesteps, first_pred_start,
                                reshape_output, aux_as_tensor, is_train)
 
 
-def train_generator(df, promo_df, items, stores, timesteps, first_pred_start,
-                    n_range=1, day_skip=7, is_train=True, batch_size=2000,
+def train_generator(df, promo_df, items, stores,
+                    timesteps, first_pred_start,
+                    n_range=1, day_skip=7, batch_size=2000,
                     aux_as_tensor=False, reshape_output=0,
                     first_pred_start_2016=None):
     encoder = LabelEncoder()
@@ -111,23 +139,23 @@ def train_generator(df, promo_df, items, stores, timesteps, first_pred_start,
     store_cluster = stores_reindex['cluster'].values - 1
     store_type = encoder.fit_transform(stores_reindex['type'].values)
 
-    # item_mean_df = df.groupby('item_nbr').mean().reindex(df.index.get_level_values(1))
     item_group_mean = df.groupby('item_nbr').mean()
     store_group_mean = df.groupby('store_nbr').mean()
-    # store_family_group_mean = df.join(items['family']).groupby(['store_nbr', 'family']).transform('mean')
-    # store_family_group_mean.index = df.index
 
-    cat_features = np.stack(
-        [item_family, item_class, item_perish, store_nbr, store_cluster,
-         store_type], axis=1)
+    cat_features = np.stack([item_family, item_class, item_perish,
+                             store_nbr, store_cluster, store_type],
+                            axis=1)
 
     while 1:
         date_part = np.random.permutation(range(n_range))
         if first_pred_start_2016 is not None:
             range_diff = (
                                  first_pred_start - first_pred_start_2016).days / day_skip
-            date_part = np.concat([date_part, np.random.permutation(
-                range(range_diff, int(n_range / 2) + range_diff))])
+            date_part = np.concatenate(
+                [date_part,
+                 np.random.permutation(
+                     range(range_diff, int(n_range / 2) + range_diff))]
+            )
 
         for i in date_part:
             keep_idx = np.random.permutation(df.shape[0])[:batch_size]
