@@ -40,5 +40,8 @@ promo.columns = promo.columns.astype('str')
 df.loc[:, '2016-12-25'] = 0
 df.sort_index(axis=1, inplace=True)
 
+promo.loc[:, '2016-12-25'] = False
+promo.sort_index(axis=1, inplace=True)
+
 df.reset_index().to_feather(df_name)
 promo.reset_index().to_feather(promo_name)

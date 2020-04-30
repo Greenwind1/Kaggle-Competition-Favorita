@@ -94,40 +94,14 @@ def load_unstack(df_name, promo_name):
     return df_2017, promo_2017, items, stores
 
 
-# Create validation and test data
-def create_dataset(df, promo_df, items, stores, timesteps, first_pred_start,
-                   is_train=True, aux_as_tensor=False, reshape_output=0):
-    encoder = LabelEncoder()
-    items_reindex = items.reindex(df.index.get_level_values(1))
-    item_family = encoder.fit_transform(items_reindex['family'].values)
-    item_class = encoder.fit_transform(items_reindex['class'].values)
-    item_perish = items_reindex['perishable'].values
-
-    stores_reindex = stores.reindex(df.index.get_level_values(0))
-    store_nbr = df.reset_index().store_nbr.values - 1
-    store_cluster = stores_reindex['cluster'].values - 1
-    store_type = encoder.fit_transform(stores_reindex['type'].values)
-
-    # item_mean_df = df.groupby('item_nbr').mean().reindex(df.index.get_level_values(1))
-    item_group_mean = df.groupby('item_nbr').mean()
-    store_group_mean = df.groupby('store_nbr').mean()
-    # store_family_group_mean = df.join(items['family']).groupby(['store_nbr', 'family']).transform('mean')
-    # store_family_group_mean.index = df.index
-
-    cat_features = np.stack(
-        [item_family, item_class, item_perish, store_nbr, store_cluster,
-         store_type], axis=1)
-
-    return create_dataset_part(df, promo_df, cat_features, item_group_mean,
-                               store_group_mean, timesteps, first_pred_start,
-                               reshape_output, aux_as_tensor, is_train)
-
-
 def train_generator(df, promo_df, items, stores,
                     timesteps, first_pred_start,
                     n_range=1, day_skip=7, batch_size=2000,
                     aux_as_tensor=False, reshape_output=0,
                     first_pred_start_2016=None):
+    # ----------------------------------------------------------------
+    # | train = 200 days | pred_start, 16days | i days | first_pred_start
+    # ----------------------------------------------------------------
     encoder = LabelEncoder()
     items_reindex = items.reindex(df.index.get_level_values(1))
     item_family = encoder.fit_transform(items_reindex['family'].values)
@@ -149,96 +123,142 @@ def train_generator(df, promo_df, items, stores,
     while 1:
         date_part = np.random.permutation(range(n_range))
         if first_pred_start_2016 is not None:
-            range_diff = (
-                                 first_pred_start - first_pred_start_2016).days / day_skip
-            date_part = np.concatenate(
-                [date_part,
-                 np.random.permutation(
-                     range(range_diff, int(n_range / 2) + range_diff))]
-            )
+            range_diff = \
+                (first_pred_start - first_pred_start_2016).days / day_skip
+            date_part = np.concatenate([
+                date_part,
+                np.random.permutation(
+                    range(range_diff, int(n_range / 2) + range_diff)
+                )
+            ])
 
         for i in date_part:
             keep_idx = np.random.permutation(df.shape[0])[:batch_size]
             df_tmp = df.iloc[keep_idx, :]
             promo_df_tmp = promo_df.iloc[keep_idx, :]
             cat_features_tmp = cat_features[keep_idx]
-            # item_mean_tmp = item_mean_df.iloc[keep_idx, :]
 
             pred_start = first_pred_start - timedelta(days=int(day_skip * i))
 
-            # Generate a batch of random subset data. All data in the same batch are in the same period.
-            yield create_dataset_part(df_tmp, promo_df_tmp, cat_features_tmp,
-                                      item_group_mean, store_group_mean,
-                                      timesteps, pred_start, reshape_output,
-                                      aux_as_tensor, True)
+            # Generate a batch of random subset data.
+            # All data in the same batch are in the same period.
+            yield create_dataset_part(
+                df_tmp, promo_df_tmp, cat_features_tmp,
+                item_group_mean=item_group_mean,
+                store_group_mean=store_group_mean,
+                timesteps=timesteps,
+                pred_start=pred_start,
+                reshape_output=reshape_output,
+                aux_as_tensor=aux_as_tensor,
+                is_train=True
+            )
 
             gc.collect()
 
 
-def create_dataset_part(df, promo_df, cat_features, item_group_mean,
-                        store_group_mean, timesteps, pred_start, reshape_output,
-                        aux_as_tensor, is_train, weight=False):
+def create_dataset_part(df, promo_df, cat_features,
+                        item_group_mean, store_group_mean,
+                        timesteps, pred_start,
+                        reshape_output, aux_as_tensor, is_train,
+                        weight=False):
     item_mean_df = item_group_mean.reindex(df.index.get_level_values(1))
     store_mean_df = store_group_mean.reindex(df.index.get_level_values(0))
-    # store_family_mean_df = store_family_group_mean.reindex(df.index)
 
     X, y = create_xy_span(df, pred_start, timesteps, is_train)
     is0 = (X == 0).astype('uint8')
-    promo = promo_df[pd.date_range(pred_start - timedelta(days=timesteps),
-                                   periods=timesteps + 16)].values
-    weekday = np.tile([d.weekday() for d in
-                       pd.date_range(pred_start - timedelta(days=timesteps),
-                                     periods=timesteps + 16)],
-                      (X.shape[0], 1))
-    dom = np.tile([d.day - 1 for d in
-                   pd.date_range(pred_start - timedelta(days=timesteps),
-                                 periods=timesteps + 16)],
-                  (X.shape[0], 1))
+
+    dataset_date_range = pd.date_range(
+        start=pred_start - timedelta(days=timesteps),
+        periods=timesteps + 16
+    )
+    promo = promo_df[dataset_date_range].values  # (, 216)
+    weekday = np.tile(
+        A=[d.weekday() for d in dataset_date_range],
+        reps=(X.shape[0], 1)
+    )
+    dom = np.tile(
+        A=[d.day - 1 for d in dataset_date_range],
+        reps=(X.shape[0], 1)
+    )
     item_mean, _ = create_xy_span(item_mean_df, pred_start, timesteps, False)
     store_mean, _ = create_xy_span(store_mean_df, pred_start, timesteps, False)
-    # store_family_mean, _ = create_xy_span(store_family_mean_df, pred_start, timesteps, False)
-    # month_tmp = np.tile([d.month-1 for d in pd.date_range(pred_start-timedelta(days=timesteps), periods=timesteps+16)],
-    #                       (X_tmp.shape[0],1))
-    yearAgo, _ = create_xy_span(df, pred_start - timedelta(days=365),
-                                timesteps + 16, False)
-    quarterAgo, _ = create_xy_span(df, pred_start - timedelta(days=91),
-                                   timesteps + 16, False)
+    # df_year_ago, _ = create_xy_span(df, pred_start - timedelta(days=365),
+    #                                 timesteps + 16, False)
+    df_quarter_ago, _ = create_xy_span(df, pred_start - timedelta(days=91),
+                                       timesteps + 16, False)
 
     if reshape_output > 0:
         X = X.reshape(-1, timesteps, 1)
     if reshape_output > 1:
         is0 = is0.reshape(-1, timesteps, 1)
         promo = promo.reshape(-1, timesteps + 16, 1)
-        yearAgo = yearAgo.reshape(-1, timesteps + 16, 1)
-        quarterAgo = quarterAgo.reshape(-1, timesteps + 16, 1)
+        # df_year_ago = df_year_ago.reshape(-1, timesteps + 16, 1)
+        df_quarter_ago = df_quarter_ago.reshape(-1, timesteps + 16, 1)
         item_mean = item_mean.reshape(-1, timesteps, 1)
         store_mean = store_mean.reshape(-1, timesteps, 1)
-        # store_family_mean = store_family_mean.reshape(-1, timesteps, 1)
 
     w = (cat_features[:, 2] * 0.25 + 1) / (cat_features[:, 2] * 0.25 + 1).mean()
 
-    cat_features = np.tile(cat_features[:, None, :], (
-        1, timesteps + 16, 1)) if aux_as_tensor else cat_features
+    cat_features = np.tile(
+        cat_features[:, None, :], (1, timesteps + 16, 1)
+    ) if aux_as_tensor else cat_features
 
     # Use when only 6th-16th days (private periods) are in the training output
     # if is_train: y = y[:, 5:]
 
     if weight:
-        return ([X, is0, promo, yearAgo, quarterAgo, weekday, dom, cat_features,
-                 item_mean, store_mean], y, w)
+        return (
+            [X, is0, promo,
+             # df_year_ago,
+             df_quarter_ago, weekday, dom,
+             cat_features,
+             item_mean, store_mean], y, w)
     else:
-        return ([X, is0, promo, yearAgo, quarterAgo, weekday, dom, cat_features,
-                 item_mean, store_mean], y)
+        return (
+            [X, is0, promo,
+             # df_year_ago,
+             df_quarter_ago, weekday, dom,
+             cat_features,
+             item_mean, store_mean], y)
 
 
-def create_xy_span(df, pred_start, timesteps, is_train=True, shift_range=0):
-    X = df[pd.date_range(pred_start - timedelta(days=timesteps),
-                         pred_start - timedelta(days=1))].values
+def create_xy_span(df, pred_start, timesteps, is_train=True):
+    X = df[pd.date_range(
+        pred_start - timedelta(days=timesteps),
+        pred_start - timedelta(days=1)
+    )].values
     if is_train:
         y = df[pd.date_range(pred_start, periods=16)].values
     else:
         y = None
     return X, y
+
+
+# Create validation and test data
+def create_dataset(df, promo_df, items, stores,
+                   timesteps, first_pred_start,
+                   is_train=True, aux_as_tensor=False, reshape_output=0):
+    encoder = LabelEncoder()
+    items_reindex = items.reindex(df.index.get_level_values(1))
+    item_family = encoder.fit_transform(items_reindex['family'].values)
+    item_class = encoder.fit_transform(items_reindex['class'].values)
+    item_perish = items_reindex['perishable'].values
+
+    stores_reindex = stores.reindex(df.index.get_level_values(0))
+    store_nbr = df.reset_index().store_nbr.values - 1
+    store_cluster = stores_reindex['cluster'].values - 1
+    store_type = encoder.fit_transform(stores_reindex['type'].values)
+
+    item_group_mean = df.groupby('item_nbr').mean()
+    store_group_mean = df.groupby('store_nbr').mean()
+
+    cat_features = np.stack(
+        [item_family, item_class, item_perish, store_nbr, store_cluster,
+         store_type], axis=1)
+
+    return create_dataset_part(df, promo_df, cat_features, item_group_mean,
+                               store_group_mean, timesteps, first_pred_start,
+                               reshape_output, aux_as_tensor, is_train)
 
 
 # Not used in the final model
@@ -252,7 +272,8 @@ def random_shift_slice(mat, start_col, timesteps, shift_range):
     return mat[rows, columns]
 
 
-# Calculate RMSE scores for all 16 days, first 5 days (fror public LB) and 6th-16th days (for private LB)
+# Calculate RMSE scores for all 16 days,
+# first 5 days (fror public LB) and 6th-16th days (for private LB)
 def cal_score(Ytrue, Yfit):
     print([metrics.mean_squared_error(Ytrue, Yfit),
            metrics.mean_squared_error(Ytrue[:, :5], Yfit[:, :5]),
@@ -261,19 +282,20 @@ def cal_score(Ytrue, Yfit):
 
 # Create submission file
 def make_submission(df_index, test_pred, filename):
-    df_test = pd.read_csv("test.csv", usecols=[0, 1, 2, 3, 4],
-                          dtype={'onpromotion': bool},
-                          parse_dates=["date"]).set_index(
-        ['store_nbr', 'item_nbr', 'date'])
+    df_test = pd.read_csv(
+        './input/test.csv',
+        usecols=[0, 1, 2, 3, 4],
+        dtype={'onpromotion': bool},
+        parse_dates=["date"]
+    ).set_index(['store_nbr', 'item_nbr', 'date'])
     df_preds = pd.DataFrame(
-        test_pred, index=df_index,
+        test_pred,
+        index=df_index,
         columns=pd.date_range("2017-08-16", periods=16)
     ).stack().to_frame("unit_sales")
     df_preds.index.set_names(["store_nbr", "item_nbr", "date"], inplace=True)
 
     submission = df_test[["id"]].join(df_preds, how="left").fillna(0)
-    submission["unit_sales"] = np.clip(np.expm1(submission["unit_sales"]), 0,
-                                       1000)
-    submission.to_csv(filename, float_format='%.4f', index=None)
-
-# Thank you for watching! :)
+    submission["unit_sales"] = \
+        np.clip(np.expm1(submission["unit_sales"]), 0, 1000)
+    submission.to_csv(filename, float_format='%.5f', index=None)
