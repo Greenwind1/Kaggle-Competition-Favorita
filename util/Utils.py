@@ -275,9 +275,12 @@ def random_shift_slice(mat, start_col, timesteps, shift_range):
 # Calculate RMSE scores for all 16 days,
 # first 5 days (for public LB) and 6th-16th days (for private LB)
 def cal_score(actual, pred):
-    print([metrics.mean_squared_error(actual, pred),
-           metrics.mean_squared_error(actual[:, :5], pred[:, :5]),
-           metrics.mean_squared_error(actual[:, 5:], pred[:, 5:])])
+    print(
+        '[all, first 5 days, 6th - 16th days] =\n',
+        [np.round(metrics.mean_squared_error(actual, pred), 5),
+         np.round(metrics.mean_squared_error(actual[:, :5], pred[:, :5]), 5),
+         np.round(metrics.mean_squared_error(actual[:, 5:], pred[:, 5:]), 5)]
+    )
 
 
 # Create submission file

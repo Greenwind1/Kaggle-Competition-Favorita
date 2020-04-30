@@ -12,7 +12,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # suppress tf warnings
 #   Env Setting
 # -------------------------------------------------------------------
 TIMESTEPS = 200
-EPOCH = 15
+EPOCH = 25
 
 # -------------------------------------------------------------------
 #   Load Dataset
@@ -95,7 +95,7 @@ Xtest, _ = create_dataset(df, promo_df, items, stores,
                           is_train=False,
                           reshape_output=2)
 
-# validation weight: 1.25 if perishable and 1 otherwise per competition rules.
+# validation weight on evaluation metric: 1.25 if perishable and 1 otherwise.
 w = (Xval[7][:, 2] * 0.25 + 1) / (Xval[7][:, 2] * 0.25 + 1).mean()
 
 del df, promo_df
@@ -194,8 +194,8 @@ model.compile(
 history = model.fit_generator(
     generator=train_data,
     steps_per_epoch=1000,
-    workers=4,
-    use_multiprocessing=True,
+    # workers=4,
+    # use_multiprocessing=True,
     epochs=EPOCH,
     verbose=2,
     validation_data=(Xval, Yval, w[:, 0])

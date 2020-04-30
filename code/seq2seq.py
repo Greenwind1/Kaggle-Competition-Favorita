@@ -11,9 +11,19 @@ from util.Utils import *
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # suppress tf warnings
 
-timesteps = 365
+# -------------------------------------------------------------------
+#   Env Setting
+# -------------------------------------------------------------------
+TIMESTEPS = 365
+EPOCH = 25
 
-df, promo_df, items, stores = load_unstack('all')
+# -------------------------------------------------------------------
+#   Load Dataset
+# -------------------------------------------------------------------
+df_name = './input/unstack_train.f'
+promo_name = './input/unstack_promo.f'
+df, promo_df, items, stores = load_unstack(df_name, promo_name)
+print('df shape =', df.shape, '\npromo_df shape =', promo_df.shape)
 
 # data after 2015
 df = df[pd.date_range(date(2014, 6, 1), date(2017, 8, 15))]
@@ -38,14 +48,14 @@ df_index = df.index
 del item_nbr_test, item_nbr_train, item_inter, df_test;
 gc.collect()
 
-train_data = train_generator(df, promo_df, items, stores, timesteps,
+train_data = train_generator(df, promo_df, items, stores, TIMESTEPS,
                              date(2017, 7, 9),
                              n_range=380, day_skip=1, batch_size=1000,
                              aux_as_tensor=True, reshape_output=2)
-Xval, Yval = create_dataset(df, promo_df, items, stores, timesteps,
+Xval, Yval = create_dataset(df, promo_df, items, stores, TIMESTEPS,
                             date(2017, 7, 26),
                             aux_as_tensor=True, reshape_output=2)
-Xtest, _ = create_dataset(df, promo_df, items, stores, timesteps,
+Xtest, _ = create_dataset(df, promo_df, items, stores, TIMESTEPS,
                           date(2017, 8, 16),
                           aux_as_tensor=True, is_train=False, reshape_output=2)
 
@@ -61,24 +71,24 @@ print('1*100, train on private 7, nrange 380 timestep 200, data 1000*1500 \n')
 latent_dim = 100
 
 # seq input
-seq_in = Input(shape=(timesteps, 1))
-is0_in = Input(shape=(timesteps, 1))
-promo_in = Input(shape=(timesteps + 16, 1))
-yearAgo_in = Input(shape=(timesteps + 16, 1))
-quarterAgo_in = Input(shape=(timesteps + 16, 1))
-item_mean_in = Input(shape=(timesteps, 1))
-store_mean_in = Input(shape=(timesteps, 1))
+seq_in = Input(shape=(TIMESTEPS, 1))
+is0_in = Input(shape=(TIMESTEPS, 1))
+promo_in = Input(shape=(TIMESTEPS + 16, 1))
+yearAgo_in = Input(shape=(TIMESTEPS + 16, 1))
+quarterAgo_in = Input(shape=(TIMESTEPS + 16, 1))
+item_mean_in = Input(shape=(TIMESTEPS, 1))
+store_mean_in = Input(shape=(TIMESTEPS, 1))
 # store_family_mean_in = Input(shape=(timesteps, 1))
-weekday_in = Input(shape=(timesteps + 16,), dtype='uint8')
-weekday_embed_encode = Embedding(7, 4, input_length=timesteps + 16)(weekday_in)
+weekday_in = Input(shape=(TIMESTEPS + 16,), dtype='uint8')
+weekday_embed_encode = Embedding(7, 4, input_length=TIMESTEPS + 16)(weekday_in)
 # weekday_embed_decode = Embedding(7, 4, input_length=timesteps+16)(weekday_in)
-dom_in = Input(shape=(timesteps + 16,), dtype='uint8')
-dom_embed_encode = Embedding(31, 4, input_length=timesteps + 16)(dom_in)
+dom_in = Input(shape=(TIMESTEPS + 16,), dtype='uint8')
+dom_embed_encode = Embedding(31, 4, input_length=TIMESTEPS + 16)(dom_in)
 # dom_embed_decode = Embedding(31, 4, input_length=timesteps+16)(dom_in)
 # weekday_onehot = Lambda(K.one_hot, arguments={'num_classes': 7}, output_shape=(timesteps+16, 7))(weekday_in)
 
 # aux input
-cat_features = Input(shape=(timesteps + 16, 6))
+cat_features = Input(shape=(TIMESTEPS + 16, 6))
 item_family = Lambda(lambda x: x[:, :, 0])(cat_features)
 item_class = Lambda(lambda x: x[:, :, 1])(cat_features)
 item_perish = Lambda(lambda x: x[:, :, 2])(cat_features)
@@ -87,17 +97,17 @@ store_cluster = Lambda(lambda x: x[:, :, 4])(cat_features)
 store_type = Lambda(lambda x: x[:, :, 5])(cat_features)
 
 # store_in = Input(shape=(timesteps+16,), dtype='uint8')
-family_embed = Embedding(33, 8, input_length=timesteps + 16)(item_family)
-class_embed = Embedding(337, 8, input_length=timesteps + 16)(item_class)
-store_embed = Embedding(54, 8, input_length=timesteps + 16)(store_nbr)
-cluster_embed = Embedding(17, 3, input_length=timesteps + 16)(store_cluster)
-type_embed = Embedding(5, 2, input_length=timesteps + 16)(store_type)
+family_embed = Embedding(33, 8, input_length=TIMESTEPS + 16)(item_family)
+class_embed = Embedding(337, 8, input_length=TIMESTEPS + 16)(item_class)
+store_embed = Embedding(54, 8, input_length=TIMESTEPS + 16)(store_nbr)
+cluster_embed = Embedding(17, 3, input_length=TIMESTEPS + 16)(store_cluster)
+type_embed = Embedding(5, 2, input_length=TIMESTEPS + 16)(store_type)
 
 # Encoder
-encode_slice = Lambda(lambda x: x[:, :timesteps, :])
+encode_slice = Lambda(lambda x: x[:, :TIMESTEPS, :])
 encode_features = concatenate(
     [promo_in, yearAgo_in, quarterAgo_in, weekday_embed_encode,
-     family_embed, Reshape((timesteps + 16, 1))(item_perish), store_embed,
+     family_embed, Reshape((TIMESTEPS + 16, 1))(item_perish), store_embed,
      cluster_embed, type_embed], axis=2)
 encode_features = encode_slice(encode_features)
 
@@ -134,10 +144,10 @@ h = Dense(latent_dim, activation='tanh')(h)
 # Decoder
 previous_x = Lambda(lambda x: x[:, -1, :])(seq_in)
 
-decode_slice = Lambda(lambda x: x[:, timesteps:, :])
+decode_slice = Lambda(lambda x: x[:, TIMESTEPS:, :])
 decode_features = concatenate(
     [promo_in, yearAgo_in, quarterAgo_in, weekday_embed_encode,
-     family_embed, Reshape((timesteps + 16, 1))(item_perish), store_embed,
+     family_embed, Reshape((TIMESTEPS + 16, 1))(item_perish), store_embed,
      cluster_embed, type_embed], axis=2)
 decode_features = decode_slice(decode_features)
 
