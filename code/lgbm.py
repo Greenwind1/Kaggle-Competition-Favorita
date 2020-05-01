@@ -25,12 +25,12 @@ print('data span:', df.columns[0].strftime('%Y-%m-%d'),
 
 df_data_range = pd.date_range(date(2017, 1, 1), date(2017, 8, 15))
 promo_df = promo_df[df[df_data_range].max(axis=1) > 0]
+promo_df = promo_df.astype('int')
 df = df[df[df_data_range].max(axis=1) > 0]
 print('df shape =', df.shape, '\npromo_df shape =', promo_df.shape)
 print('data span:', df.columns[0].strftime('%Y-%m-%d'),
       '-', df.columns[-1].strftime('%Y-%m-%d'), '\n')
 
-promo_df = promo_df.astype('int')
 df_test = pd.read_csv(
     './input/test.csv',
     usecols=[0, 1, 2, 3, 4],
@@ -42,9 +42,7 @@ item_nbr_train = df.index.get_level_values(1)
 item_inter = list(set(item_nbr_train).intersection(set(item_nbr_test)))
 
 df = df.loc[df.index.get_level_values(1).isin(item_inter)]
-promo_df = promo_df.loc[
-    promo_df.index.get_level_values(1).isin(item_inter)
-]
+promo_df = promo_df.loc[promo_df.index.get_level_values(1).isin(item_inter)]
 print('df shape =', df.shape, '\npromo_df shape =', promo_df.shape)
 print('data span:', df.columns[0].strftime('%Y-%m-%d'),
       '-', df.columns[-1].strftime('%Y-%m-%d'))

@@ -85,7 +85,7 @@ train_data = train_generator(
 Xval, Yval = create_dataset(df, promo_df, items, stores,
                             timesteps=TIMESTEPS,
                             first_pred_start=date(2017, 7, 26),
-                            aux_as_tensor=False,
+                            aux_as_tensor=False,  # cat: (160964,6)
                             reshape_output=2)
 
 Xtest, _ = create_dataset(df, promo_df, items, stores,
