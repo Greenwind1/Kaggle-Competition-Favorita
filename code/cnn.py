@@ -68,7 +68,7 @@ gc.collect()
 #   X5: dom
 #   X6: cat_features
 #   X7: item_mean
-#   X8:store_mean
+#   X8: store_mean
 # -------------------------------------------------------------------
 
 train_data = train_generator(

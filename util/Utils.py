@@ -100,7 +100,8 @@ def train_generator(df, promo_df, items, stores,
                     aux_as_tensor=False, reshape_output=0,
                     first_pred_start_2016=None):
     # ----------------------------------------------------------------
-    # | train = 200 days | pred_start, 16days | i days | first_pred_start
+    # | X = timesteps days | pred_start (delta days) | first_pred_start
+    # | X = timesteps days | y = 16 days | --------- | first_pred_start
     # ----------------------------------------------------------------
     encoder = LabelEncoder()
     items_reindex = items.reindex(df.index.get_level_values(1))
