@@ -40,6 +40,9 @@ pred_l = [
     pd.read_csv('./sub/dnn/cnn_epoch15.csv'),
     pd.read_csv('./sub/dnn/cnn_epoch20.csv'),
     pd.read_csv('./sub/dnn/cnn_epoch25.csv'),
+    # GRU
+    pd.read_csv('./sub/dnn/gru_epoch10.csv'),
+    pd.read_csv('./sub/dnn/gru_epoch25.csv'),
 ]
 
 pred_b = pred_l[0][['id']].copy()
