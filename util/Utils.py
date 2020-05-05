@@ -122,7 +122,9 @@ def train_generator(df, promo_df, items, stores,
                             axis=1)
 
     while 1:
+        # permutation of [0, 1, 2, 3, ..., 15]
         date_part = np.random.permutation(range(n_range))
+
         if first_pred_start_2016 is not None:
             range_diff = \
                 (first_pred_start - first_pred_start_2016).days / day_skip
@@ -165,31 +167,44 @@ def create_dataset_part(df, promo_df, cat_features,
     item_mean_df = item_group_mean.reindex(df.index.get_level_values(1))
     store_mean_df = store_group_mean.reindex(df.index.get_level_values(0))
 
-    X, y = create_xy_span(df, pred_start, timesteps, is_train)
-    is0 = (X == 0).astype('uint8')
+    # sales features (None, 200)
+    x, y = create_xy_span(df, pred_start, timesteps, is_train)
+    is0 = (x == 0).astype('uint8')
 
     dataset_date_range = pd.date_range(
         start=pred_start - timedelta(days=timesteps),
         periods=timesteps + 16
     )
-    promo = promo_df[dataset_date_range].values  # (, 216)
+    # promo features (None, 216)
+    promo = promo_df[dataset_date_range].values
+
+    # weekday features (None, 216)
     weekday = np.tile(
         A=[d.weekday() for d in dataset_date_range],
-        reps=(X.shape[0], 1)
+        reps=(x.shape[0], 1)
     )
+
+    # day of month features (None, 216)
     dom = np.tile(
         A=[d.day - 1 for d in dataset_date_range],
-        reps=(X.shape[0], 1)
+        reps=(x.shape[0], 1)
     )
+
+    # item_mean features (None, 200)
     item_mean, _ = create_xy_span(item_mean_df, pred_start, timesteps, False)
+
+    # store features (None, 200)
     store_mean, _ = create_xy_span(store_mean_df, pred_start, timesteps, False)
+
     # df_year_ago, _ = create_xy_span(df, pred_start - timedelta(days=365),
     #                                 timesteps + 16, False)
+
+    # quarter_ago features (None, 216)
     df_quarter_ago, _ = create_xy_span(df, pred_start - timedelta(days=91),
                                        timesteps + 16, False)
 
     if reshape_output > 0:
-        X = X.reshape(-1, timesteps, 1)
+        x = x.reshape(-1, timesteps, 1)
     if reshape_output > 1:
         is0 = is0.reshape(-1, timesteps, 1)
         promo = promo.reshape(-1, timesteps + 16, 1)
@@ -209,14 +224,14 @@ def create_dataset_part(df, promo_df, cat_features,
 
     if weight:
         return (
-            [X, is0, promo,
+            [x, is0, promo,
              # df_year_ago,
              df_quarter_ago, weekday, dom,
              cat_features,
              item_mean, store_mean], y, w)
     else:
         return (
-            [X, is0, promo,
+            [x, is0, promo,
              # df_year_ago,
              df_quarter_ago, weekday, dom,
              cat_features,
