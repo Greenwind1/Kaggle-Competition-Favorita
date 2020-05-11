@@ -150,34 +150,31 @@ def prepare_dataset(train_end_point, is_train=True, one_hot=False):
             'store_count0'].values
 
     for i in range(7):
-        x['mean_4_dow{}'.format(i)] = get_timespan(df, train_end_point,
-                                                   28 - i,
-                                                   4,
-                                                   freq='7D').mean(
-            axis=1).values
-        x['mean_10_dow{}'.format(i)] = get_timespan(df, train_end_point,
-                                                    70 - i,
-                                                    10,
-                                                    freq='7D').mean(
-            axis=1).values
-        x['count0_10_dow{}'.format(i)] = (
-                get_timespan(df, train_end_point, 70 - i, 10) == 0).sum(
-            axis=1).values
-        x['promo_10_dow{}'.format(i)] = get_timespan(promo_df,
-                                                     train_end_point,
-                                                     70 - i,
-                                                     10, freq='7D').sum(
-            axis=1).values
-        item_mean = get_timespan(df, train_end_point, 70 - i, 10,
-                                 freq='7D').mean(
-            axis=1).groupby('item_nbr').mean().to_frame('item_mean')
-        x['item_mean_10_dow{}'.format(i)] = df.join(item_mean)[
-            'item_mean'].values
+        x['mean_4_dow{}'.format(i)] = get_timespan(
+            df, train_end_point, 28 - i, 4, freq='7D'
+        ).mean(axis=1).values
 
-        x['mean_20_dow{}'.format(i)] = get_timespan(df, train_end_point,
-                                                    140 - i, 20,
-                                                    freq='7D').mean(
-            axis=1).values
+        x['mean_10_dow{}'.format(i)] = get_timespan(
+            df, train_end_point, 70 - i, 10, freq='7D'
+        ).mean(axis=1).values
+
+        x['count0_10_dow{}'.format(i)] = (get_timespan(
+            df, train_end_point, 70 - i, 10, freq='7D'
+        ) == 0).sum(axis=1).values
+
+        x['promo_10_dow{}'.format(i)] = get_timespan(
+            promo_df, train_end_point, 70 - i, 10, freq='7D'
+        ).sum(axis=1).values
+
+        item_mean = get_timespan(
+            df, train_end_point, 70 - i, 10, freq='7D'
+        ).mean(axis=1).groupby('item_nbr').mean().to_frame('item_mean')
+        x['item_mean_10_dow{}'.format(i)] = \
+            df.join(item_mean)['item_mean'].values
+
+        x['mean_20_dow{}'.format(i)] = get_timespan(
+            df, train_end_point, 140 - i, 20, freq='7D'
+        ).mean(axis=1).values
 
     for i in range(16):
         x["promo_{}".format(i)] = promo_df[

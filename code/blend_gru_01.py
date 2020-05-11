@@ -28,10 +28,10 @@ plt.style.use('ggplot')
 sys.path.append('')
 
 pred_l = [
-    pd.read_csv('./sub/dnn/gru_epoch5.csv'),
-    pd.read_csv('./sub/dnn/gru_epoch10.csv'),
-    # pd.read_csv('./sub/dnn/gru_epoch15.csv'),
-    # pd.read_csv('./sub/dnn/gru_epoch20.csv'),
+    # pd.read_csv('./sub/dnn/gru_epoch5.csv'),
+    # pd.read_csv('./sub/dnn/gru_epoch10.csv'),
+    pd.read_csv('./sub/dnn/gru_epoch15.csv'),
+    pd.read_csv('./sub/dnn/gru_epoch20.csv'),
     pd.read_csv('./sub/dnn/gru_epoch25.csv'),
 ]
 

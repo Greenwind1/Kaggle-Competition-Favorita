@@ -18,7 +18,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # suppress tf warnings
 #   Env Setting
 # -------------------------------------------------------------------
 TIMESTEPS = 365
-EPOCH = 5
+EPOCH = 15
 
 # -------------------------------------------------------------------
 #   Load Dataset
@@ -75,7 +75,7 @@ train_data = train_generator(
     df, promo_df, items, stores,
     timesteps=TIMESTEPS,
     first_pred_start=date(2017, 7, 9),
-    n_range=7 * 7,
+    n_range=7 * 8,
     day_skip=1,
     batch_size=1000,
     aux_as_tensor=True,
