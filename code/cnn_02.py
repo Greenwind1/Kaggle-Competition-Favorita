@@ -16,7 +16,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # suppress tf warnings
 #   Env Setting
 # -------------------------------------------------------------------
 TIMESTEPS = 200
-EPOCH = 25
+EPOCH = 20
 
 # -------------------------------------------------------------------
 #   Load Dataset
@@ -211,14 +211,17 @@ history = model.fit_generator(
 #   Validation
 # -------------------------------------------------------------------
 val_pred = model.predict(Xval)
-cal_score(Yval, val_pred)
+score_l = cal_score(Yval, val_pred)
+print(
+    f'\nDay all, Day 0-5, Day 6-16 = {score_l[0]}, {score_l[1]}, {score_l[2]}'
+)
 
 # -------------------------------------------------------------------
 #   Inference
 # -------------------------------------------------------------------
 test_pred = model.predict(Xtest)
 make_submission(df_index, test_pred,
-                f'./sub/dnn/cnn_02_epoch{EPOCH}.csv')
+                f'./sub/dnn/cnn_02_epoch{EPOCH}_{score_l[0]}.csv')
 gc.collect()
 
 # model.save('save_models/cnn_model')
