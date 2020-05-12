@@ -17,6 +17,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
+from glob import glob
 
 pd.set_option('display.max_columns', 100)
 pd.set_option('display.max_rows', 100)
@@ -27,13 +28,8 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 plt.style.use('ggplot')
 sys.path.append('')
 
-pred_l = [
-    pd.read_csv('./sub/lgb/lgb_seed2020.csv'),
-    pd.read_csv('./sub/lgb/lgb_seed2021.csv'),
-    pd.read_csv('./sub/lgb/lgb_seed2022.csv'),
-    pd.read_csv('./sub/lgb/lgb_seed2023.csv'),
-    pd.read_csv('./sub/lgb/lgb_seed2024.csv'),
-]
+csv_l = glob(f'./sub/lgb/lgb_seed*.csv')
+pred_l = [pd.read_csv(c) for c in csv_l]
 
 pred_b = pred_l[0][['id']].copy()
 pred_b['unit_sales'] = 0

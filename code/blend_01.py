@@ -17,6 +17,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
+from glob import glob
 
 pd.set_option('display.max_columns', 100)
 pd.set_option('display.max_rows', 100)
@@ -27,29 +28,12 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 plt.style.use('ggplot')
 sys.path.append('')
 
-pred_l = [
-    # LGB
-    pd.read_csv('./sub/lgb/lgb_seed2020.csv'),
-    pd.read_csv('./sub/lgb/lgb_seed2021.csv'),
-    pd.read_csv('./sub/lgb/lgb_seed2022.csv'),
-    pd.read_csv('./sub/lgb/lgb_seed2023.csv'),
-    pd.read_csv('./sub/lgb/lgb_seed2024.csv'),
-    # CNN
-    pd.read_csv('./sub/dnn/cnn_epoch5.csv'),
-    pd.read_csv('./sub/dnn/cnn_epoch10.csv'),
-    pd.read_csv('./sub/dnn/cnn_epoch15.csv'),
-    pd.read_csv('./sub/dnn/cnn_epoch20.csv'),
-    pd.read_csv('./sub/dnn/cnn_epoch25.csv'),
-    # GRU
-    pd.read_csv('./sub/dnn/gru_epoch15.csv'),
-    pd.read_csv('./sub/dnn/gru_epoch20.csv'),
-    pd.read_csv('./sub/dnn/gru_epoch25.csv'),
-]
+csv_l = np.sort(glob('./sub/blend/blend_lgb_*-5.csv')).tolist()
+csv_l = csv_l + np.sort(glob('./sub/blend/ensemble_cnn_0*-5.csv')).tolist()
+pred_l = [pd.read_csv(c) for c in csv_l]
 
 w_l = [
-    1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1,
-    0.2, 0.2, 0.2
+    3, 1, 1, 1, 1
 ]
 
 pred_b = pred_l[0][['id']].copy()
@@ -58,5 +42,5 @@ pred_b['unit_sales'] = 0
 for i, p in enumerate(pred_l):
     pred_b['unit_sales'] += p['unit_sales'] * w_l[i] / np.sum(w_l)
 
-pred_b.to_csv(f'./sub/blend/blend_01-{len(pred_l)}.csv',
+pred_b.to_csv(f'./sub/blend/blend_01-{len(pred_l)}_{tuple(w_l)}.csv',
               index=False)
