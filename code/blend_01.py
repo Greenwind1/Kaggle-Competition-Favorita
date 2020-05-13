@@ -28,7 +28,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 plt.style.use('ggplot')
 sys.path.append('')
 
-csv_l = np.sort(glob('./sub/blend/blend_lgb_*-5.csv')).tolist()
+csv_l = np.sort(glob('./sub/blend/blend_lgb_*-10.csv')).tolist()
 csv_l = csv_l + np.sort(glob('./sub/blend/ensemble_cnn_0*-5.csv')).tolist()
 pred_l = [pd.read_csv(c) for c in csv_l]
 

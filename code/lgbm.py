@@ -10,7 +10,7 @@ from util.Utils import *
 # -------------------------------------------------------------------
 #   Env Setting
 # -------------------------------------------------------------------
-SEED = 2020 + 5
+SEED = 2020 + 9
 CPU = psutil.cpu_count()
 
 # -------------------------------------------------------------------
@@ -276,7 +276,10 @@ for i in range(16):
         bst.predict(X_test, num_iteration=bst.best_iteration or MAX_ROUNDS))
     gc.collect()
 
-cal_score(y_val, np.array(val_pred).T)
+score_l = cal_score(y_val, np.array(val_pred).T)
+print(
+    f'\nDay all, Day 0-5, Day 6-16 = {score_l[0]}, {score_l[1]}, {score_l[2]}'
+)
 
 make_submission(df.index, np.array(test_pred).T,
-                f'./sub/lgb/lgb_seed{SEED}.csv')
+                f'./sub/lgb/lgb_seed{SEED}_{score_l[0]}.csv')
