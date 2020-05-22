@@ -99,7 +99,7 @@ Xtest, _ = create_dataset(df, promo_df, items, stores,
                           reshape_output=2)
 
 # validation weight on evaluation metric: 1.25 if perishable and 1 otherwise.
-w = (Xval[7][:, 2] * 0.25 + 1) / (Xval[7][:, 2] * 0.25 + 1).mean()
+w = (Xval[6][:, 2] * 0.25 + 1) / (Xval[6][:, 2] * 0.25 + 1).mean()
 
 del df, promo_df
 gc.collect()

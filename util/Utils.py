@@ -98,7 +98,8 @@ def train_generator(df, promo_df, items, stores,
                     timesteps, first_pred_start,
                     n_range=16, day_skip=7, batch_size=2000,
                     aux_as_tensor=False, reshape_output=0,
-                    first_pred_start_2016=None):
+                    first_pred_start_2016=None,
+                    weight=False):
     # ----------------------------------------------------------------
     # | X = timesteps days | pred_start (n_r * d_skip) | first_pred_start
     # | X = timesteps days | y = 16 days | ----------- | first_pred_start
@@ -156,7 +157,8 @@ def train_generator(df, promo_df, items, stores,
                 pred_start=pred_start,
                 reshape_output=reshape_output,
                 aux_as_tensor=aux_as_tensor,
-                is_train=True
+                is_train=True,
+                weight=weight,
             )
 
             gc.collect()
@@ -226,19 +228,32 @@ def create_dataset_part(df, promo_df, cat_features,
     # if is_train: y = y[:, 5:]
 
     if weight:
-        return (
-            [x, is0, promo,
-             # df_year_ago,
-             df_quarter_ago, weekday, dom,
-             cat_features,
-             item_mean, store_mean], y, w)
+        return ([
+                    x,
+                    is0,
+                    promo,
+                    # df_year_ago,
+                    df_quarter_ago,
+                    weekday,
+                    dom,
+                    cat_features,
+                    item_mean,
+                    store_mean,
+                ], y, w)
     else:
-        return (
-            [x, is0, promo,
-             # df_year_ago,
-             df_quarter_ago, weekday, dom,
-             cat_features,
-             item_mean, store_mean], y)
+        return ([
+                    x,  # shape: (2000, 200, 1)
+                    is0,  # shape: (2000, 200, 1)
+                    promo,  # shape: (2000, 216, 1)
+                    # df_year_ago,
+                    df_quarter_ago,  # shape: (2000, 216, 1)
+                    weekday,  # shape: (2000, 216, 1)
+                    dom,  # shape: (2000, 216)
+                    cat_features,  # shape: (2000, 6)
+                    item_mean,  # shape: (2000, 200, 1)
+                    store_mean  # shape: (2000, 200, 1)
+                ], y)
+        # y shape: (2000, 16)
 
 
 def create_xy_span(df, pred_start, timesteps, is_train=True):
@@ -246,10 +261,12 @@ def create_xy_span(df, pred_start, timesteps, is_train=True):
         pred_start - timedelta(days=timesteps),
         pred_start - timedelta(days=1)
     )].values
+
     if is_train:
         y = df[pd.date_range(pred_start, periods=16)].values
     else:
         y = None
+
     return X, y
 
 
