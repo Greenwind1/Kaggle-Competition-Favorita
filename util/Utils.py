@@ -96,7 +96,7 @@ def load_unstack(df_name, promo_name):
 
 def train_generator(df, promo_df, items, stores,
                     timesteps, first_pred_start,
-                    n_range=1, day_skip=7, batch_size=2000,
+                    n_range=16, day_skip=7, batch_size=2000,
                     aux_as_tensor=False, reshape_output=0,
                     first_pred_start_2016=None):
     # ----------------------------------------------------------------
@@ -117,9 +117,10 @@ def train_generator(df, promo_df, items, stores,
     item_group_mean = df.groupby('item_nbr').mean()
     store_group_mean = df.groupby('store_nbr').mean()
 
-    cat_features = np.stack([item_family, item_class, item_perish,
-                             store_nbr, store_cluster, store_type],
-                            axis=1)
+    cat_features = np.stack([
+        item_family, item_class, item_perish,
+        store_nbr, store_cluster, store_type
+    ], axis=1)
 
     while 1:
         # permutation of [0, 1, 2, 3, ..., 15]
@@ -146,7 +147,9 @@ def train_generator(df, promo_df, items, stores,
             # Generate a batch of random subset data.
             # All data in the same batch are in the same period.
             yield create_dataset_part(
-                df_tmp, promo_df_tmp, cat_features_tmp,
+                df=df_tmp,
+                promo_df=promo_df_tmp,
+                cat_features=cat_features_tmp,
                 item_group_mean=item_group_mean,
                 store_group_mean=store_group_mean,
                 timesteps=timesteps,

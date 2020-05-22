@@ -72,7 +72,10 @@ gc.collect()
 # -------------------------------------------------------------------
 
 train_data = train_generator(
-    df, promo_df, items, stores,
+    df=df,
+    promo_df=promo_df,
+    items=items,
+    stores=stores,
     timesteps=TIMESTEPS,
     first_pred_start=date(2017, 7, 5),
     n_range=16,
@@ -193,7 +196,7 @@ model.compile(
 # -------------------------------------------------------------------
 history = model.fit_generator(
     generator=train_data,
-    steps_per_epoch=1000,
+    steps_per_epoch=1000,  # 1,000 * 2,000 = 2,000,000
     # workers=4,
     # use_multiprocessing=True,
     epochs=EPOCH,

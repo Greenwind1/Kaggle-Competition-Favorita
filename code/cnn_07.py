@@ -210,7 +210,7 @@ model.compile(
 # -------------------------------------------------------------------
 callbacks = [
     ModelCheckpoint(
-        MODEL_DIR + '/weights_{epoch:08d}.h5',
+        MODEL_DIR + '/weights_{epoch:02d}.h5',
         verbose=1,
         monitor='val_loss',
         # save_best_only=True,
