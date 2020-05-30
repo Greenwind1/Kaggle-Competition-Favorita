@@ -18,6 +18,7 @@ from util.Utils import *
 # -------------------------------------------------------------------
 #   Env Setting
 # -------------------------------------------------------------------
+NAME = 'lgb_03'
 SEED = int(sys.argv[2]) + 2020
 # SEED = 2020 + 1
 CPU = psutil.cpu_count()
@@ -291,4 +292,4 @@ print(
 )
 
 make_submission(df.index, np.array(test_pred).T,
-                f'./sub/lgb/lgb_02_seed{SEED}_{score_l[0]}.csv')
+                f'./sub/lgb/{NAME}_seed{SEED}_{score_l[0]}.csv')

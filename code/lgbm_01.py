@@ -247,7 +247,7 @@ MAX_ROUNDS = 700
 val_pred = []
 test_pred = []
 best_rounds = []
-cate_vars = ['family', 'perish', 'store_nbr', 'store_cluster', 'store_type']
+cat_vars = ['family', 'perish', 'store_nbr', 'store_cluster', 'store_type']
 w = (X_val["perish"] * 0.25 + 1) / (X_val["perish"] * 0.25 + 1).mean()
 
 for i in range(16):
@@ -255,12 +255,12 @@ for i in range(16):
 
     dtrain = lgb.Dataset(
         X_train, label=y_train[:, i],
-        categorical_feature=cate_vars,
+        categorical_feature=cat_vars,
         weight=None)
     dval = lgb.Dataset(
         X_val, label=y_val[:, i], reference=dtrain,
         weight=w,
-        categorical_feature=cate_vars)
+        categorical_feature=cat_vars)
     bst = lgb.train(
         params, dtrain, num_boost_round=MAX_ROUNDS,
         valid_sets=[dtrain, dval], verbose_eval=100)
