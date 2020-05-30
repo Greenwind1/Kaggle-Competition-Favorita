@@ -30,6 +30,7 @@ sys.path.append('')
 
 csv_l = np.sort(glob('./sub/blend/blend_lgb_*-10.csv')).tolist()
 csv_l = csv_l + np.sort(glob('./sub/blend/ensemble_cnn_0*-5.csv')).tolist()
+print(csv_l)
 pred_l = [pd.read_csv(c) for c in csv_l]
 
 w_l = [
