@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-echo "-------------------------------------"
-echo "---       M5 bash scripit         ---"
-echo "---          Maxwell 2020         ---"
-echo "-------------------------------------"
+echo "------------------------------------------"
+echo "---  Corporate Favorta bash scripit    ---"
+echo "---               Maxwell 2020         ---"
+echo "------------------------------------------"
 
 #root="/home/maxwell/PycharmProjects/kaggle_m5/"
 root="/home/maxwell/pycwd/Kaggle-Competition-Favorita/"
