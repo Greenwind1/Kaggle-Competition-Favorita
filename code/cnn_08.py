@@ -99,6 +99,8 @@ Xval, Yval = create_dataset(df, promo_df, items, stores,
                             first_pred_start=date(2017, 7, 26),
                             aux_as_tensor=False,  # cat: (160964,6)
                             reshape_output=2)
+for i in range(len(Xval)):
+    print(f'{i}: {Xval[i].shape}')
 
 Xtest, _ = create_dataset(df, promo_df, items, stores,
                           timesteps=TIMESTEPS,
@@ -110,7 +112,6 @@ Xtest, _ = create_dataset(df, promo_df, items, stores,
 # validation weight on evaluation metric: 1.25 if perishable and 1 otherwise.
 w = (Xval[7][:, 2] * 0.25 + 1) / (Xval[7][:, 2] * 0.25 + 1).mean()
 
-del df, promo_df
 gc.collect()
 
 # -------------------------------------------------------------------
@@ -120,10 +121,10 @@ latent_dim = 32
 
 # Define input
 seq_in = Input(shape=(TIMESTEPS, 1))
-is0_in = Input(shape=(TIMESTEPS, 1))
+# is0_in = Input(shape=(TIMESTEPS, 1))
 promo_in = Input(shape=(TIMESTEPS + 16, 1))
 # yearAgo_in = Input(shape=(TIMESTEPS + 16, 1))
-quarterAgo_in = Input(shape=(TIMESTEPS + 16, 1))
+# quarterAgo_in = Input(shape=(TIMESTEPS + 16, 1))
 item_mean_in = Input(shape=(TIMESTEPS, 1))
 store_mean_in = Input(shape=(TIMESTEPS, 1))
 weekday_in = Input(shape=(TIMESTEPS + 16,), dtype='uint8')
@@ -193,7 +194,11 @@ x = Dropout(0.25)(x)
 output = Dense(16, activation='relu')(x)
 
 model = Model(
-    inputs=[seq_in, is0_in, promo_in, quarterAgo_in, weekday_in, dom_in,
+    inputs=[seq_in,
+            # is0_in,
+            promo_in,
+            # quarterAgo_in,
+            weekday_in, dom_in,
             cat_features, item_mean_in, store_mean_in],
     outputs=output,
 )
